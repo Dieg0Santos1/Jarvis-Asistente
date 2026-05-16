@@ -1,0 +1,9 @@
+google-genai>=1.0.0
+openai-whisper>=20250625
+openwakeword>=0.6.0
+pyttsx3>=2.99
+pyautogui>=0.9.54
+python-dotenv>=1.0.1
+sounddevice>=0.5.1
+numpy>=2.0.2
+scipy>=1.14.1

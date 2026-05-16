@@ -1,0 +1,242 @@
+from __future__ import annotations
+
+import threading
+import time
+from queue import Empty, Queue
+from pathlib import Path
+from typing import Any
+
+try:
+    import webview  # type: ignore[import-not-found]
+except ImportError:
+    webview = None
+
+
+class OverlayUI:
+    def __init__(self) -> None:
+        self._state = "idle"
+        self._detail = "En espera"
+        self._window: Any | None = None
+        self._html_path = Path(__file__).with_name("index.html")
+        self._backend = "pywebview" if webview is not None else "tkinter"
+        self._thread: threading.Thread | None = None
+        self._tk_root = None
+        self._tk_label = None
+        self._tk_detail_label = None
+        self._tk_frame = None
+        self._tk_orb = None
+        self._tk_canvas = None
+        self._visible = False
+        self._hide_after_id = None
+        self._command_queue: Queue[tuple[str, tuple[Any, ...]]] = Queue()
+        self._window_width = 320
+        self._window_height = 340
+        self._window_margin = 28
+
+    def start(self) -> None:
+        if self._thread is not None:
+            return
+
+        if self._backend == "pywebview":
+            self._thread = threading.Thread(target=self._start_pywebview, daemon=True)
+        else:
+            self._thread = threading.Thread(target=self._start_tkinter, daemon=True)
+
+        self._thread.start()
+
+    def set_state(self, state: str) -> None:
+        self._state = state
+        self._dispatch("set_state", state)
+        if state != "idle":
+            self.show()
+        else:
+            self.hide(delay_ms=2200)
+
+    def set_detail(self, text: str) -> None:
+        self._detail = text.strip() or "En espera"
+        self._dispatch("set_detail", self._detail)
+
+    def show(self) -> None:
+        self._visible = True
+        self._dispatch("show")
+
+    def hide(self, delay_ms: int = 0) -> None:
+        self._visible = False
+        self._dispatch("hide", delay_ms)
+
+    def activate(self, state: str, detail: str) -> None:
+        self.set_detail(detail)
+        self.set_state(state)
+
+    def _dispatch(self, action: str, *args: Any) -> None:
+        self._command_queue.put((action, args))
+
+    def _apply_state(self, state: str) -> None:
+        palettes = {
+            "idle": {"frame": "#06111c", "ring": "#2dd4ff", "orb": "#37c8ff", "text": "#dffbff"},
+            "listening": {"frame": "#041b26", "ring": "#22d3ee", "orb": "#51f3ff", "text": "#dcfcff"},
+            "thinking": {"frame": "#140b28", "ring": "#8b5cf6", "orb": "#a78bfa", "text": "#efe7ff"},
+            "speaking": {"frame": "#06261f", "ring": "#00f5a0", "orb": "#44ffbf", "text": "#e6fff5"},
+        }
+        palette = palettes.get(state, palettes["idle"])
+
+        if self._backend == "tkinter" and self._tk_root is not None:
+            self._tk_root.configure(bg=palette["frame"])
+            if self._tk_frame is not None:
+                self._tk_frame.configure(bg=palette["frame"], highlightbackground=palette["ring"])
+            if self._tk_canvas is not None:
+                self._tk_canvas.configure(bg=palette["frame"], highlightthickness=0)
+                self._tk_canvas.itemconfig("ring", outline=palette["ring"])
+                self._tk_canvas.itemconfig("orb", fill=palette["orb"], outline=palette["ring"])
+            if self._tk_label is not None:
+                self._tk_label.config(text=state.upper(), fg=palette["text"], bg=palette["frame"])
+            if self._tk_detail_label is not None:
+                self._tk_detail_label.config(fg=palette["text"], bg=palette["frame"])
+        elif self._backend == "pywebview" and self._window is not None:
+            try:
+                self._window.evaluate_js(f"window.jarvisUi.setState('{state}')")
+            except Exception:
+                pass
+
+    @property
+    def state(self) -> str:
+        return self._state
+
+    def _start_pywebview(self) -> None:
+        if webview is None:
+            return
+
+        self._window = webview.create_window(
+            "Jarvis",
+            url=self._html_path.as_uri(),
+            width=self._window_width,
+            height=self._window_height,
+            frameless=True,
+            on_top=True,
+            transparent=True,
+            easy_drag=True,
+        )
+        webview.start()
+
+    def _start_tkinter(self) -> None:
+        import tkinter as tk
+
+        root = tk.Tk()
+        root.title("Jarvis")
+        self._apply_tk_geometry(root)
+        root.overrideredirect(True)
+        root.attributes("-topmost", True)
+        root.configure(bg="#06111c")
+        root.withdraw()
+
+        frame = tk.Frame(root, bg="#06111c", highlightthickness=2, highlightbackground="#58e1ff")
+        frame.place(relx=0.5, rely=0.5, anchor="center", width=260, height=280)
+
+        title = tk.Label(
+            frame,
+            text="JARVIS",
+            fg="#58e1ff",
+            bg="#06111c",
+            font=("Segoe UI", 22, "bold"),
+        )
+        title.place(relx=0.5, y=28, anchor="center")
+
+        canvas = tk.Canvas(frame, width=180, height=180, bg="#06111c", highlightthickness=0)
+        canvas.place(relx=0.5, rely=0.47, anchor="center")
+        canvas.create_oval(20, 20, 160, 160, outline="#58e1ff", width=3, tags="ring")
+        canvas.create_oval(54, 54, 126, 126, fill="#37c8ff", outline="#58e1ff", width=2, tags="orb")
+
+        label = tk.Label(
+            frame,
+            text=self._state.upper(),
+            fg="#dffbff",
+            bg="#06111c",
+            font=("Segoe UI", 12, "bold"),
+        )
+        label.place(relx=0.5, rely=0.78, anchor="center")
+
+        detail_label = tk.Label(
+            frame,
+            text=self._detail,
+            fg="#dffbff",
+            bg="#06111c",
+            font=("Segoe UI", 10),
+            wraplength=210,
+            justify="center",
+        )
+        detail_label.place(relx=0.5, rely=0.88, anchor="center")
+
+        self._tk_root = root
+        self._tk_frame = frame
+        self._tk_label = label
+        self._tk_detail_label = detail_label
+        self._tk_canvas = canvas
+
+        root.after(50, self._process_tk_commands)
+        root.after(200, self._pulse_tkinter)
+        root.mainloop()
+
+    def _pulse_tkinter(self) -> None:
+        if self._tk_root is None:
+            return
+
+        if self._visible and self._tk_canvas is not None:
+            phase = int(time.time() * 3) % 6
+            scale_map = [0, 1, 2, 1, 0, -1]
+            pulse = scale_map[phase]
+            outer = 20 - pulse
+            inner = 54 - pulse // 2
+            self._tk_canvas.coords("ring", outer, outer, 180 - outer, 180 - outer)
+            self._tk_canvas.coords("orb", inner, inner, 180 - inner, 180 - inner)
+        self._tk_root.after(250, self._pulse_tkinter)
+
+    def _process_tk_commands(self) -> None:
+        if self._tk_root is None:
+            return
+
+        while True:
+            try:
+                action, args = self._command_queue.get_nowait()
+            except Empty:
+                break
+
+            if action == "set_state":
+                self._apply_state(args[0])
+            elif action == "set_detail" and self._tk_detail_label is not None:
+                self._tk_detail_label.config(text=args[0])
+            elif action == "show":
+                if self._hide_after_id is not None:
+                    self._tk_root.after_cancel(self._hide_after_id)
+                    self._hide_after_id = None
+                self._apply_tk_geometry(self._tk_root)
+                self._tk_root.deiconify()
+                self._tk_root.lift()
+                self._tk_root.attributes("-topmost", True)
+                self._visible = True
+            elif action == "hide":
+                delay_ms = int(args[0]) if args else 0
+                if self._hide_after_id is not None:
+                    self._tk_root.after_cancel(self._hide_after_id)
+                    self._hide_after_id = None
+                if delay_ms <= 0:
+                    self._tk_root.withdraw()
+                    self._visible = False
+                else:
+                    self._hide_after_id = self._tk_root.after(delay_ms, self._hide_now)
+
+        self._tk_root.after(50, self._process_tk_commands)
+
+    def _hide_now(self) -> None:
+        if self._tk_root is None:
+            return
+        self._tk_root.withdraw()
+        self._visible = False
+        self._hide_after_id = None
+
+    def _apply_tk_geometry(self, root: Any) -> None:
+        root.update_idletasks()
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        x = max(0, screen_width - self._window_width - self._window_margin)
+        y = max(0, screen_height - self._window_height - self._window_margin - 40)
+        root.geometry(f"{self._window_width}x{self._window_height}+{x}+{y}")
