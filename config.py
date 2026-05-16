@@ -33,6 +33,8 @@ class Settings:
     wake_word_debug: bool = os.getenv("WAKE_WORD_DEBUG", "false").lower() in {"1", "true", "yes", "on"}
     tts_rate: int = int(os.getenv("TTS_RATE", "175"))
     tts_voice_hint: str = os.getenv("TTS_VOICE_HINT", "")
+    elevenlabs_api_key: str = os.getenv("ELEVENLABS_API_KEY", "")
+    elevenlabs_voice_id: str = os.getenv("ELEVENLABS_VOICE_ID", "")
 
 
 settings = Settings()

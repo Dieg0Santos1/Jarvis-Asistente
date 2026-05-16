@@ -1,16 +1,37 @@
 from __future__ import annotations
 
 import sys
+import numpy as np
+import sounddevice as sd
+
+try:
+    from elevenlabs.client import ElevenLabs
+except ImportError:
+    ElevenLabs = None
 
 import pyttsx3
 import win32com.client
 
 
 class TextToSpeechService:
-    def __init__(self, language: str = "es", rate: int = 175, voice_hint: str = "") -> None:
+    def __init__(
+        self,
+        language: str = "es",
+        rate: int = 175,
+        voice_hint: str = "",
+        elevenlabs_api_key: str = "",
+        elevenlabs_voice_id: str = "",
+    ) -> None:
         self.language = language.lower()
         self.rate = rate
         self.voice_hint = voice_hint.lower().strip()
+        self.elevenlabs_api_key = elevenlabs_api_key
+        self.elevenlabs_voice_id = elevenlabs_voice_id
+
+        self.elevenlabs_client = None
+        if self.elevenlabs_api_key and ElevenLabs is not None:
+            self.elevenlabs_client = ElevenLabs(api_key=self.elevenlabs_api_key)
+
         self._is_windows = sys.platform.startswith("win")
 
         if self._is_windows:
@@ -21,6 +42,29 @@ class TextToSpeechService:
             self._configure_voice()
 
     def speak(self, text: str) -> None:
+        if not text:
+            return
+
+        if self.elevenlabs_client is not None:
+            try:
+                # "JBFqnCBsd6RMkjVDRZzb" is George (British), good Jarvis alternative if custom not provided
+                voice_id = self.elevenlabs_voice_id if self.elevenlabs_voice_id else "JBFqnCBsd6RMkjVDRZzb"
+                audio_generator = self.elevenlabs_client.generate(
+                    text=text,
+                    voice=voice_id,
+                    model="eleven_multilingual_v2",
+                    output_format="pcm_16000",
+                )
+                
+                audio_bytes = b"".join(audio_generator)
+                audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
+                
+                sd.play(audio_array, samplerate=16000)
+                sd.wait()
+                return
+            except Exception as exc:
+                print(f"Jarvis> Error en ElevenLabs: {exc}. Usando voz local de respaldo.")
+
         try:
             if self._is_windows:
                 self.engine.Speak(text)

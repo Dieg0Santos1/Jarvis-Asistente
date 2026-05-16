@@ -31,6 +31,8 @@ class JarvisApp:
             language=settings.language,
             rate=settings.tts_rate,
             voice_hint=settings.tts_voice_hint,
+            elevenlabs_api_key=settings.elevenlabs_api_key,
+            elevenlabs_voice_id=settings.elevenlabs_voice_id,
         )
         self.brain = GeminiBrain(settings.gemini_api_key, settings.gemini_model)
         self.app_actions = AppActions()
