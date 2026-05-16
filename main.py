@@ -137,18 +137,22 @@ class JarvisApp:
                 self.ui.show()
                 self.ui.set_detail("Wake word detectada")
                 print(f"Jarvis> Wake word detectada con score {detection.score:.2f}")
-                self.text_to_speech.speak("Te escucho.")
-                transcribed = self.capture_voice_command()
-                if not transcribed:
-                    print("Jarvis> No detecte texto despues de la activacion.")
-                    self.ui.set_state("idle")
-                    self.ui.set_detail("En espera de activacion")
-                    continue
+                self.text_to_speech.speak("Sí, señor?")
+                
+                # Bucle continuo de conversación
+                while True:
+                    transcribed = self.capture_voice_command()
+                    if not transcribed:
+                        print("Jarvis> No detecte texto. Cerrando flujo de conversacion.")
+                        self.ui.set_state("idle")
+                        self.ui.set_detail("En espera de activacion")
+                        break # Rompe el bucle interno, vuelve a esperar wake word
 
-                self.ui.set_detail(f'Transcrito: "{transcribed}"')
-                print(f"Transcrito> {transcribed}")
-                response = self.process_text(transcribed)
-                print(f"Jarvis> {response}")
+                    self.ui.set_detail(f'Transcrito: "{transcribed}"')
+                    print(f"Transcrito> {transcribed}")
+                    response = self.process_text(transcribed)
+                    print(f"Jarvis> {response}")
+
         except KeyboardInterrupt:
             self.ui.set_state("idle")
             self.ui.set_detail("En espera de activacion")

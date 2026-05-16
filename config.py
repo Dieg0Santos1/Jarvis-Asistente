@@ -29,7 +29,7 @@ class Settings:
     voice_energy_threshold: float = float(os.getenv("VOICE_ENERGY_THRESHOLD", "0.015"))
     wake_word: str = os.getenv("WAKE_WORD", "jarvis")
     wake_word_model: str = os.getenv("WAKE_WORD_MODEL", "hey_jarvis")
-    wake_word_threshold: float = float(os.getenv("WAKE_WORD_THRESHOLD", "0.18"))
+    wake_word_threshold: float = float(os.getenv("WAKE_WORD_THRESHOLD", "0.12"))
     wake_word_debug: bool = os.getenv("WAKE_WORD_DEBUG", "false").lower() in {"1", "true", "yes", "on"}
     tts_rate: int = int(os.getenv("TTS_RATE", "175"))
     tts_voice_hint: str = os.getenv("TTS_VOICE_HINT", "")

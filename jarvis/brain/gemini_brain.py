@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 from typing import Any
 
 from google import genai
@@ -27,20 +28,20 @@ class GeminiBrain:
             return fallback
 
         try:
-            prompt = (
-                "Eres el cerebro de un asistente de escritorio llamado Jarvis.\n"
-                "Clasifica la entrada del usuario y responde solo JSON valido.\n"
-                'Para acciones usa: {"intent":"action","action":"open_chrome"}\n'
-                'Si una accion necesita texto extra usa: {"intent":"action","action":"search_google","action_input":"python decorators"}\n'
-                'Para conversacion usa: {"intent":"chat","response":"..."}\n'
-                "Acciones permitidas: open_chrome, open_vscode, open_spotify, open_terminal, open_explorer, open_github, search_google, get_time.\n"
-                "Responde en espanol.\n"
-                f"Entrada del usuario: {text}"
-            )
+            prompt_path = Path("CerebroJarvis.md")
+            if prompt_path.exists():
+                base_prompt = prompt_path.read_text(encoding="utf-8")
+            else:
+                base_prompt = "Eres Jarvis, un asistente de escritorio. Clasifica la entrada y responde solo JSON valido."
+            
+            prompt = f"{base_prompt}\n\nEntrada del usuario: {text}"
 
             response = self.client.models.generate_content(
                 model=self.model_name,
                 contents=prompt,
+                config=genai.types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                ),
             )
             return self._parse_response(response.text or "")
         except Exception:
