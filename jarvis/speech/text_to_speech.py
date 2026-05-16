@@ -49,10 +49,10 @@ class TextToSpeechService:
             try:
                 # "JBFqnCBsd6RMkjVDRZzb" is George (British), good Jarvis alternative if custom not provided
                 voice_id = self.elevenlabs_voice_id if self.elevenlabs_voice_id else "JBFqnCBsd6RMkjVDRZzb"
-                audio_generator = self.elevenlabs_client.generate(
+                audio_generator = self.elevenlabs_client.text_to_speech.convert(
                     text=text,
-                    voice=voice_id,
-                    model="eleven_multilingual_v2",
+                    voice_id=voice_id,
+                    model_id="eleven_multilingual_v2",
                     output_format="pcm_16000",
                 )
                 
