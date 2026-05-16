@@ -6,7 +6,7 @@ from config import settings
 from jarvis.actions.app_actions import AppActions
 from jarvis.actions.browser_actions import BrowserActions
 from jarvis.actions.system_actions import SystemActions
-from jarvis.brain.gemini_brain import GeminiBrain
+from jarvis.brain.openai_brain import OpenAIBrain
 from jarvis.speech.speech_to_text import SpeechToTextService
 from jarvis.speech.text_to_speech import TextToSpeechService
 from jarvis.ui.overlay import OverlayUI
@@ -34,7 +34,7 @@ class JarvisApp:
             elevenlabs_api_key=settings.elevenlabs_api_key,
             elevenlabs_voice_id=settings.elevenlabs_voice_id,
         )
-        self.brain = GeminiBrain(settings.gemini_api_key, settings.gemini_model)
+        self.brain = OpenAIBrain(settings.openai_api_key, settings.openai_model)
         self.app_actions = AppActions()
         self.browser_actions = BrowserActions()
         self.system_actions = SystemActions()

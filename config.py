@@ -11,8 +11,8 @@ load_dotenv()
 
 @dataclass(slots=True)
 class Settings:
-    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     language: str = os.getenv("JARVIS_LANGUAGE", "es")
     whisper_model: str = os.getenv("WHISPER_MODEL", "small")
     whisper_prompt: str = os.getenv(
