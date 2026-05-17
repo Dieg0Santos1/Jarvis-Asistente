@@ -360,7 +360,7 @@ If a feature is unavailable:
 
 {
   "intent": "chat",
-  "response": "Actualmente esa función no está implementada."
+  "response": "Señor, actualmente esa función no está implementada."
 }
 
 Examples of unavailable features:

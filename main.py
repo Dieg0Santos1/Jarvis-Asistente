@@ -17,13 +17,14 @@ from jarvis.wakeword.listener import WakeWordListener
 
 
 class JarvisApp:
-    def __init__(self) -> None:
+    def __init__(self, auto_mode: bool = False) -> None:
+        self.auto_mode = auto_mode
         self.ui = OverlayUI()
         self.wake_word = WakeWordListener(
             settings.wake_word,
             model_name=settings.wake_word_model,
             threshold=settings.wake_word_threshold,
-            debug=settings.wake_word_debug,
+            debug=False if auto_mode else settings.wake_word_debug,
         )
         self.speech_to_text = SpeechToTextService(
             settings.whisper_model,
@@ -57,7 +58,10 @@ class JarvisApp:
         )
 
         while True:
-            user_text = input("Tu> ").strip()
+            try:
+                user_text = input("Tu> ").strip()
+            except EOFError:
+                break
             if user_text.lower() in {"salir", "exit", "quit"}:
                 print("Cerrando Jarvis.")
                 break
@@ -288,11 +292,29 @@ class JarvisApp:
         self.ui.hide(delay_ms=1000)
 
     def run_auto(self) -> None:
-        """Modo automático: briefing de arranque + wake word sin intervención manual."""
+        """
+        Modo automatico: briefing de arranque + wake word permanente.
+        No termina hasta que se cierre el proceso. Ideal para inicio de Windows.
+        """
+        import time
         self.ui.start()
         self.ui.activate("thinking", "Iniciando Jarvis...")
         self.startup_briefing()
-        self.run_wake_mode()
+
+        # Esperar a que termine el audio del briefing antes de escuchar
+        time.sleep(1.0)
+
+        # Bucle infinito: si el wake word sale (Ctrl+C interno), vuelve a escuchar
+        print("Jarvis> Modo automatico activo. Di 'hey jarvis' en cualquier momento.")
+        while True:
+            try:
+                self.run_wake_mode()
+            except KeyboardInterrupt:
+                print("\nJarvis> Cerrando.")
+                break
+            except Exception as e:
+                print(f"Jarvis> [Error en wake mode]: {e}. Reiniciando escucha...")
+                time.sleep(2)
 
 
 if __name__ == "__main__":
@@ -304,7 +326,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    app = JarvisApp()
+    app = JarvisApp(auto_mode=args.auto)
     if args.auto:
         app.run_auto()
     else:
