@@ -336,6 +336,19 @@ Allowed confirmations:
 Do not repeat the same confirmation every time.
 
 ==================================================
+MEMORY KEYS (always use these exact key names)
+==================================================
+
+When saving memory, use these standardized key names:
+- "nombre_usuario"  → user's first name
+- "ciudad"          → user's city or location (save whenever they mention where they live)
+- "nombre_esposa", "nombre_esposo", "nombre_hermano", etc. → family members
+
+Example:
+User: "Vivo en Medellín."
+{"save_memory": {"ciudad": "Medellín"}}
+
+==================================================
 CAPABILITY RULES
 ==================================================
 

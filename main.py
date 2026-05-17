@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import argparse
+from datetime import datetime
 from pathlib import Path
 
 from config import settings
@@ -242,6 +244,68 @@ class JarvisApp:
             return f"Abriendo sitio: {action_input}"
         return descriptions.get(action_name, f"Accion: {action_name}")
 
+    def startup_briefing(self) -> None:
+        """
+        Saludo de arranque personalizado.
+        Habla segun la hora del dia, da el tiempo y el clima, luego entra en modo wake.
+        """
+        now = datetime.now()
+        hour = now.hour
+        time_str = now.strftime("%H:%M")
+
+        if 5 <= hour < 12:
+            saludo = "Buenos días"
+        elif 12 <= hour < 19:
+            saludo = "Buenas tardes"
+        else:
+            saludo = "Buenas noches"
+
+        # Leer nombre del usuario si lo tiene guardado en memoria
+        nombre = self.brain.memory.get("nombre_usuario", "")
+        tratamiento = f", {nombre}" if nombre else ", señor"
+
+        # Obtener ciudad de la memoria si está guardada
+        ciudad = self.brain.memory.get("ciudad", "")
+        query_clima = f"clima hoy en {ciudad}" if ciudad else "clima hoy"
+
+        print("Jarvis> [Obteniendo briefing de arranque...]")
+        try:
+            clima = self.search_actions.search_and_summarize(query_clima)
+        except Exception:
+            clima = "No pude obtener el clima en este momento."
+
+        mensaje = (
+            f"{saludo}{tratamiento}. Son las {time_str}. "
+            f"{clima} "
+            f"Estoy listo y en escucha activa. ¿En qué puedo asistirle hoy?"
+        )
+
+        print(f"Jarvis> {mensaje}")
+        self.ui.show()
+        self.ui.set_state("speaking")
+        self.text_to_speech.speak(mensaje)
+        self.ui.set_state("idle")
+        self.ui.hide(delay_ms=1000)
+
+    def run_auto(self) -> None:
+        """Modo automático: briefing de arranque + wake word sin intervención manual."""
+        self.ui.start()
+        self.ui.activate("thinking", "Iniciando Jarvis...")
+        self.startup_briefing()
+        self.run_wake_mode()
+
 
 if __name__ == "__main__":
-    JarvisApp().run()
+    parser = argparse.ArgumentParser(description="Jarvis AI Assistant")
+    parser.add_argument(
+        "--auto",
+        action="store_true",
+        help="Arranque automatico: briefing + modo wake word directo (ideal para inicio de Windows)"
+    )
+    args = parser.parse_args()
+
+    app = JarvisApp()
+    if args.auto:
+        app.run_auto()
+    else:
+        app.run()
