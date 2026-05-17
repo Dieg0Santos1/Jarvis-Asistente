@@ -250,6 +250,10 @@ Currently available actions:
 - brightness_up
 - brightness_down
 - set_brightness     (requires action_input = number 0-100)
+- add_reminder       (requires action_input = "MINUTES|message")
+- add_alarm          (requires action_input = "HH:MM|message")
+- list_reminders
+- cancel_reminders
 
 Only use these unless explicitly expanded later.
 
@@ -301,6 +305,36 @@ Examples:
 "cuánta batería queda" -> get_battery
 "estado del sistema" -> get_system_stats
 "cuánta RAM estoy usando" -> get_system_stats
+
+"recuérdame X en N minutos" -> add_reminder (action_input: "N|X")
+"en 30 minutos recuérdame tomar agua" -> add_reminder (action_input: "30|tomar agua")
+"pon un recordatorio en 1 hora para la reunión" -> add_reminder (action_input: "60|reunión")
+"pon una alarma a las 7:30 para despertar" -> add_alarm (action_input: "07:30|despertar")
+"ponme una alarma a las 9 de la mañana" -> add_alarm (action_input: "09:00|alarma")
+"qué recordatorios tengo" -> list_reminders
+"cuáles son mis recordatorios" -> list_reminders
+"muéstrame mis recordatorios" -> list_reminders
+"tengo recordatorios pendientes" -> list_reminders
+"cancela todos los recordatorios" -> cancel_reminders
+"elimina mis recordatorios" -> cancel_reminders
+
+CRITICAL: Any question about pending reminders or alarms MUST use action=list_reminders, NOT chat.
+
+--------------------------------------------------
+REMINDER FORMAT RULES
+--------------------------------------------------
+
+For add_reminder:
+  action_input MUST be: "MINUTES|message"
+  - MINUTES: integer number of minutes from now
+  - message: what to remind about
+  Example: "45|Tomar el medicamento"
+
+For add_alarm:
+  action_input MUST be: "HH:MM|message"
+  - HH:MM: 24-hour time format
+  - message: what the alarm is for
+  Example: "07:30|Despertar"
 
 ==================================================
 FOLLOW-UP BEHAVIOR

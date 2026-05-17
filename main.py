@@ -10,6 +10,7 @@ from jarvis.actions.browser_actions import BrowserActions
 from jarvis.actions.search_actions import SearchActions
 from jarvis.actions.system_actions import SystemActions
 from jarvis.brain.openai_brain import OpenAIBrain
+from jarvis.reminders.manager import ReminderManager
 from jarvis.speech.speech_to_text import SpeechToTextService
 from jarvis.speech.text_to_speech import TextToSpeechService
 from jarvis.ui.overlay import OverlayUI
@@ -43,6 +44,7 @@ class JarvisApp:
         self.browser_actions = BrowserActions()
         self.search_actions = SearchActions(settings.openai_api_key, settings.openai_model)
         self.system_actions = SystemActions()
+        self.reminders = ReminderManager(speak_callback=self.text_to_speech.speak)
 
     def run(self) -> None:
         self.ui.start()
@@ -51,6 +53,7 @@ class JarvisApp:
         self.ui.hide(delay_ms=1800)
         self.ui.set_detail("En espera de activacion")
         self.ui.set_state("idle")
+        self.reminders.start()  # Arrancar hilo de recordatorios
         print("Jarvis listo.")
         print(
             "Escribe un comando, usa '/voz' para grabar hasta silencio, "
@@ -209,6 +212,36 @@ class JarvisApp:
         if action_name in system_actions:
             return self.system_actions.execute(action_name, action_input)
 
+        if action_name == "add_reminder":
+            # action_input formato: "30|Tomar el medicamento"
+            try:
+                parts = action_input.split("|", 1)
+                minutes = int(parts[0].strip())
+                message = parts[1].strip() if len(parts) > 1 else "Recordatorio"
+                return self.reminders.add(minutes, message)
+            except Exception:
+                return "No pude interpretar el recordatorio. Dime: 'recúerdame X en N minutos'."
+
+        if action_name == "add_alarm":
+            # action_input formato: "07:30|Despertar"
+            try:
+                parts = action_input.split("|", 1)
+                h, m = parts[0].strip().split(":")
+                message = parts[1].strip() if len(parts) > 1 else "Alarma"
+                return self.reminders.add_alarm(int(h), int(m), message)
+            except Exception:
+                return "No pude interpretar la alarma. Dime: 'pon una alarma a las X para Y'."
+
+        if action_name == "list_reminders":
+            pending = self.reminders.list_pending()
+            if not pending:
+                return "No tiene recordatorios pendientes."
+            lines = [f"- {r['message']} a las {r['trigger_at'].strftime('%H:%M')}" for r in pending]
+            return "Sus recordatorios pendientes: " + "; ".join(lines) + "."
+
+        if action_name == "cancel_reminders":
+            return self.reminders.cancel_all()
+
         return "No reconozco esa accion todavia."
 
     def describe_action(self, action_name: str, action_input: str = "") -> str:
@@ -241,6 +274,10 @@ class JarvisApp:
             "brightness_up": "Subiendo el brillo",
             "brightness_down": "Bajando el brillo",
             "set_brightness": "Ajustando el brillo",
+            "add_reminder": "Registrando recordatorio",
+            "add_alarm": "Programando alarma",
+            "list_reminders": "Consultando recordatorios pendientes",
+            "cancel_reminders": "Cancelando todos los recordatorios",
         }
         if action_name == "search_google" and action_input:
             return f'Buscando en Google: "{action_input}"'
@@ -299,6 +336,7 @@ class JarvisApp:
         import time
         self.ui.start()
         self.ui.activate("thinking", "Iniciando Jarvis...")
+        self.reminders.start()  # Arrancar hilo de recordatorios
         self.startup_briefing()
 
         # Esperar a que termine el audio del briefing antes de escuchar
