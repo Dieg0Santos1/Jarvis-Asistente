@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import re
+import threading
 from pathlib import Path
-from typing import Any
+from queue import Empty, Queue
+from typing import Any, Generator
 
 from openai import OpenAI
 
@@ -67,6 +70,76 @@ class OpenAIBrain:
             print(f"Jarvis> [Debug OpenAI] Error: {e}")
             return self._fallback_analysis(text)
 
+    def _build_messages(self, text: str) -> list[dict]:
+        """Construye la lista de mensajes con el prompt base y la memoria."""
+        prompt_path = Path("CerebroJarvis.md")
+        if prompt_path.exists():
+            base_prompt = prompt_path.read_text(encoding="utf-8")
+        else:
+            base_prompt = "Eres Jarvis, un asistente de escritorio. Clasifica la entrada y responde solo JSON valido."
+
+        known_memory = self.memory.get_all()
+        if known_memory:
+            memory_str = json.dumps(known_memory, indent=2, ensure_ascii=False)
+            base_prompt += f"\n\n==================================================\nCURRENT LONG-TERM MEMORY:\n{memory_str}\n=================================================="
+
+        messages = [{"role": "system", "content": base_prompt}]
+        messages.extend(self.history)
+        messages.append({"role": "user", "content": text})
+        return messages
+
+    def stream_chat(self, text: str) -> Generator[str, None, None]:
+        """
+        Streaming de respuesta de chat por oraciones completas.
+        Yield: una oración a la vez, tan pronto como termina de formarse.
+        Para respuestas de tipo 'chat' SOLAMENTE.
+        """
+        SENTENCE_END = re.compile(r'(?<=[.!?…])\s+|(?<=[,;:])\s+(?=\S{4,})')
+        buffer = ""
+        full_response = ""
+
+        try:
+            messages = self._build_messages(text)
+            # Usamos texto plano en streaming (no json_object, no compatible con stream)
+            messages[0]["content"] += (
+                "\n\nIMPORTANT FOR THIS REQUEST: Respond in plain text only (no JSON). "
+                "Give a concise, natural spoken answer in Spanish. No markdown, no lists."
+            )
+
+            with self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                stream=True,
+            ) as stream:
+                for chunk in stream:
+                    delta = chunk.choices[0].delta.content or ""
+                    buffer += delta
+                    full_response += delta
+
+                    # Detectar fin de oración para emitir
+                    parts = SENTENCE_END.split(buffer)
+                    if len(parts) > 1:
+                        for sentence in parts[:-1]:
+                            sentence = sentence.strip()
+                            if sentence:
+                                yield sentence
+                        buffer = parts[-1]
+
+            # Emitir lo que quede en el buffer
+            remaining = buffer.strip()
+            if remaining:
+                yield remaining
+
+            # Actualizar historial con la respuesta completa
+            self.history.append({"role": "user", "content": text})
+            self.history.append({"role": "assistant", "content": full_response})
+            if len(self.history) > 10:
+                self.history = self.history[-10:]
+
+        except Exception as e:
+            print(f"Jarvis> [Debug Streaming] Error: {e}")
+            yield "Disculpe, hubo un error al procesar mi respuesta."
+
     def _parse_response(self, response_text: str) -> dict[str, Any]:
         """Intenta parsear el JSON de la respuesta."""
         try:
@@ -80,6 +153,7 @@ class OpenAIBrain:
             cleaned = cleaned.strip()
 
             parsed = json.loads(cleaned)
+
             return parsed
         except json.JSONDecodeError:
             return {

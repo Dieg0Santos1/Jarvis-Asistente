@@ -88,6 +88,8 @@ class JarvisApp:
         self.ui.show()
         self.ui.set_detail(f'Tu dijiste: "{text}"')
         self.ui.set_state("thinking")
+
+        # Primer paso: analizar con JSON para detectar acciones
         analysis = self.brain.analyze(text)
 
         if analysis.get("intent") == "action":
@@ -102,13 +104,13 @@ class JarvisApp:
             self.ui.set_detail("En espera de activacion")
             return response
 
-        response = analysis.get("response", "No tengo una respuesta para eso todavia.")
+        # Para respuestas de chat: usar streaming para latencia mínima
         self.ui.set_state("speaking")
-        self.ui.set_detail(response)
-        self.text_to_speech.speak(response)
+        self.ui.set_detail("Jarvis respondiendo...")
+        self.text_to_speech.speak_streaming(self.brain.stream_chat(text))
         self.ui.set_state("idle")
         self.ui.set_detail("En espera de activacion")
-        return response
+        return ""
 
     def capture_voice_command(self) -> str:
         temp_audio = Path("temp_command.wav")

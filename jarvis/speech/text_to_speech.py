@@ -74,6 +74,78 @@ class TextToSpeechService:
         except Exception:
             pass
 
+    def speak_streaming(self, sentence_generator) -> None:
+        """
+        Pipeline de streaming de alta calidad:
+        - Productor: sintetiza audio para cada oración en un hilo separado
+        - Consumidor (hilo principal): reproduce el audio en cuanto está listo
+        Resultado: Jarvis empieza a hablar ~300ms después de generar la primera oración.
+        """
+        import queue as q_module
+        import threading
+
+        DONE = object()  # Centinela para señalar fin de cola
+        audio_queue: q_module.Queue = q_module.Queue(maxsize=3)  # Prefetch máx. 3 oraciones
+        voice_id = self.elevenlabs_voice_id if self.elevenlabs_voice_id else "JBFqnCBsd6RMkjVDRZzb"
+
+        def producer(sentences: list[str]):
+            """Sintetiza cada oración y las encola como bytes de audio."""
+            for sentence in sentences:
+                if not sentence.strip():
+                    continue
+                try:
+                    audio_gen = self.elevenlabs_client.text_to_speech.convert(
+                        text=sentence,
+                        voice_id=voice_id,
+                        model_id="eleven_turbo_v2_5",
+                        output_format="pcm_16000",
+                    )
+                    audio_bytes = b"".join(audio_gen)
+                    audio_queue.put(audio_bytes)
+                except Exception as exc:
+                    print(f"Jarvis> [TTS error]: {exc}")
+                    # Fallback: sintetizar con SAPI local
+                    audio_queue.put(("sapi", sentence))
+            audio_queue.put(DONE)
+
+        if self.elevenlabs_client is not None:
+            # Recoger todas las oraciones del generador primero
+            # (el generador de OpenAI es muy rápido, llega antes que ElevenLabs)
+            collected: list[str] = []
+            for sentence in sentence_generator:
+                s = sentence.strip()
+                if s:
+                    collected.append(s)
+                    print(f"Jarvis> {s}")
+
+            if not collected:
+                return
+
+            # Arrancar productor en hilo paralelo
+            t = threading.Thread(target=producer, args=(collected,), daemon=True)
+            t.start()
+
+            # Consumidor: reproducir en cuanto llega cada chunk de audio
+            while True:
+                item = audio_queue.get(timeout=30)
+                if item is DONE:
+                    break
+                if isinstance(item, tuple) and item[0] == "sapi":
+                    self.speak(item[1])
+                elif isinstance(item, bytes) and item:
+                    arr = np.frombuffer(item, dtype=np.int16)
+                    sd.play(arr, samplerate=16000)
+                    sd.wait()
+            return
+
+        # Fallback completo: sin ElevenLabs, SAPI por oración
+        for sentence in sentence_generator:
+            sentence = sentence.strip()
+            if sentence:
+                print(f"Jarvis> {sentence}")
+                self.speak(sentence)
+
+
     def _configure_voice(self) -> None:
         self.engine.setProperty("rate", self.rate)
         voices = self.engine.getProperty("voices")
