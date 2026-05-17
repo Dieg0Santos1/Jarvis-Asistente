@@ -5,6 +5,7 @@ from pathlib import Path
 from config import settings
 from jarvis.actions.app_actions import AppActions
 from jarvis.actions.browser_actions import BrowserActions
+from jarvis.actions.search_actions import SearchActions
 from jarvis.actions.system_actions import SystemActions
 from jarvis.brain.openai_brain import OpenAIBrain
 from jarvis.speech.speech_to_text import SpeechToTextService
@@ -37,6 +38,7 @@ class JarvisApp:
         self.brain = OpenAIBrain(settings.openai_api_key, settings.openai_model)
         self.app_actions = AppActions()
         self.browser_actions = BrowserActions()
+        self.search_actions = SearchActions(settings.openai_api_key, settings.openai_model)
         self.system_actions = SystemActions()
 
     def run(self) -> None:
@@ -184,6 +186,13 @@ class JarvisApp:
                 return "Necesito una direccion web para abrirla."
             return self.browser_actions.open_url(url)
 
+        if action_name == "web_search":
+            query = action_input.strip()
+            if not query:
+                return "Necesito saber qué quieres que busque."
+            self.ui.set_detail(f'Buscando: "{query}"')
+            return self.search_actions.search_and_summarize(query)
+
         if action_name == "get_time":
             return self.system_actions.get_current_time()
 
@@ -202,6 +211,7 @@ class JarvisApp:
             "close_vscode": "Cerrando Visual Studio Code",
             "close_spotify": "Cerrando Spotify",
             "close_terminal": "Cerrando la terminal",
+            "web_search": "Buscando en internet...",
         }
         if action_name == "search_google" and action_input:
             return f'Buscando en Google: "{action_input}"'
