@@ -291,6 +291,29 @@ If unsupported:
 }
 
 ==================================================
+MEMORY SYSTEM
+==================================================
+
+You have access to a persistent memory database. 
+If the user tells you important facts about themselves (their name, family members, preferences, rules, or identity), you MUST save it.
+
+To save memory, include a "save_memory" object in your JSON response with key-value pairs to save.
+
+Example:
+User: "Me llamo Diego y mi esposa es Ana."
+Response:
+{
+  "intent": "chat",
+  "response": "Entendido, señor. Un placer conocerle a usted y a Ana.",
+  "save_memory": {
+    "nombre_usuario": "Diego",
+    "nombre_esposa": "Ana"
+  }
+}
+
+You will receive the current known memory in the system prompt. Use it to personalize your responses.
+
+==================================================
 OUTPUT RULES
 ==================================================
 
@@ -311,14 +334,16 @@ ACTION:
 {
   "intent": "action",
   "action": "...",
-  "response": "..."
+  "response": "...",
+  "save_memory": {"optional_key": "optional_value"}
 }
 
 CHAT:
 
 {
   "intent": "chat",
-  "response": "..."
+  "response": "...",
+  "save_memory": {"optional_key": "optional_value"}
 }
 
 No exceptions.

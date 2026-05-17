@@ -6,11 +6,15 @@ from typing import Any
 
 from openai import OpenAI
 
+from jarvis.memory.storage import MemoryManager
+
 
 class OpenAIBrain:
     def __init__(self, api_key: str, model_name: str = "gpt-4o-mini") -> None:
         self.client = OpenAI(api_key=api_key)
         self.model_name = model_name
+        self.memory = MemoryManager()
+        self.history = []
 
     def analyze(self, text: str) -> dict[str, Any]:
         """
@@ -24,17 +28,41 @@ class OpenAIBrain:
             else:
                 base_prompt = "Eres Jarvis, un asistente de escritorio. Clasifica la entrada y responde solo JSON valido."
             
+            # Inyectar memoria a largo plazo
+            known_memory = self.memory.get_all()
+            if known_memory:
+                memory_str = json.dumps(known_memory, indent=2, ensure_ascii=False)
+                base_prompt += f"\n\n==================================================\nCURRENT LONG-TERM MEMORY:\n{memory_str}\n=================================================="
+
+            messages = [{"role": "system", "content": base_prompt}]
+            messages.extend(self.history)
+            messages.append({"role": "user", "content": text})
+
             response = self.client.chat.completions.create(
                 model=self.model_name,
-                messages=[
-                    {"role": "system", "content": base_prompt},
-                    {"role": "user", "content": text}
-                ],
+                messages=messages,
                 response_format={"type": "json_object"}
             )
             
             response_text = response.choices[0].message.content or "{}"
-            return self._parse_response(response_text)
+            parsed = self._parse_response(response_text)
+
+            # Actualizar memoria a corto plazo
+            self.history.append({"role": "user", "content": text})
+            assistant_reply = parsed.get("response", "")
+            self.history.append({"role": "assistant", "content": f"Jarvis: {assistant_reply}"})
+            
+            # Limitar historial (ultimos 10 mensajes = 5 interacciones)
+            if len(self.history) > 10:
+                self.history = self.history[-10:]
+
+            # Actualizar memoria a largo plazo si lo pide el JSON
+            save_memory = parsed.get("save_memory")
+            if isinstance(save_memory, dict):
+                self.memory.update_dict(save_memory)
+                print(f"Jarvis> [Memoria Actualizada]: {save_memory}")
+
+            return parsed
         except Exception as e:
             print(f"Jarvis> [Debug OpenAI] Error: {e}")
             return self._fallback_analysis(text)
