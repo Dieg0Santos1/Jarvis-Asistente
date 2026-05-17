@@ -162,11 +162,9 @@ class JarvisApp:
 
     def execute_action(self, action_name: str, action_input: str = "") -> str:
         if action_name in {
-            "open_chrome",
-            "open_vscode",
-            "open_spotify",
-            "open_terminal",
-            "open_explorer",
+            "open_chrome", "open_vscode", "open_spotify",
+            "open_terminal", "open_explorer",
+            "close_chrome", "close_vscode", "close_spotify", "close_terminal",
         }:
             return self.app_actions.execute(action_name)
 
@@ -199,6 +197,10 @@ class JarvisApp:
             "open_explorer": "Preparando el Explorador de archivos",
             "open_github": "Preparando GitHub",
             "get_time": "Consultando la hora actual",
+            "close_chrome": "Cerrando Google Chrome",
+            "close_vscode": "Cerrando Visual Studio Code",
+            "close_spotify": "Cerrando Spotify",
+            "close_terminal": "Cerrando la terminal",
         }
         if action_name == "search_google" and action_input:
             return f'Buscando en Google: "{action_input}"'

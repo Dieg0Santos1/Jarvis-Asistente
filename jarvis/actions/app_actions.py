@@ -65,6 +65,31 @@ class AppActions:
         subprocess.Popen(["explorer"])
         return "Abriendo el Explorador de archivos."
 
+    def close_app(self, process_name: str, display_name: str) -> str:
+        """Cierra un proceso de Windows por nombre de ejecutable."""
+        try:
+            result = subprocess.run(
+                ["taskkill", "/F", "/IM", process_name],
+                capture_output=True, text=True
+            )
+            if result.returncode == 0:
+                return f"{display_name} cerrado."
+            return f"{display_name} no estaba abierto."
+        except Exception as exc:
+            return f"No pude cerrar {display_name}: {exc}"
+
+    def close_chrome(self) -> str:
+        return self.close_app("chrome.exe", "Google Chrome")
+
+    def close_vscode(self) -> str:
+        return self.close_app("Code.exe", "Visual Studio Code")
+
+    def close_spotify(self) -> str:
+        return self.close_app("Spotify.exe", "Spotify")
+
+    def close_terminal(self) -> str:
+        return self.close_app("WindowsTerminal.exe", "La terminal")
+
     def execute(self, action_name: str) -> str:
         actions = {
             "open_chrome": self.open_chrome,
@@ -72,6 +97,10 @@ class AppActions:
             "open_spotify": self.open_spotify,
             "open_terminal": self.open_terminal,
             "open_explorer": self.open_file_explorer,
+            "close_chrome": self.close_chrome,
+            "close_vscode": self.close_vscode,
+            "close_spotify": self.close_spotify,
+            "close_terminal": self.close_terminal,
         }
 
         handler = actions.get(action_name)

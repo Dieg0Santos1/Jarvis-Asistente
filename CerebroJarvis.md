@@ -97,6 +97,34 @@ For every user input, classify request into one of:
 2. chat
 
 --------------------------------------------------
+SEARCH vs. QUESTION - CRITICAL DISTINCTION
+--------------------------------------------------
+
+NEVER open Google when the user asks a general question.
+
+If the user asks something like:
+- "qué es la inteligencia artificial?"
+- "cuéntame sobre Bad Bunny"
+- "cómo funciona el bluetooth?"
+- "quién ganó el partido ayer?"
+
+Answer using YOUR OWN knowledge. Return a "chat" intent with the answer.
+
+ONLY use search_google (action) if the user EXPLICITLY says one of:
+- "busca X en google"
+- "busca X en internet"
+- "busca X"
+- "googlea X"
+
+In that case, extract the query and return:
+{
+  "intent": "action",
+  "action": "search_google",
+  "action_input": "<the search query>",
+  "response": "Buscando \"<query>\" en Google."
+}
+
+--------------------------------------------------
 ACTION
 --------------------------------------------------
 
@@ -110,6 +138,12 @@ Examples:
 - reinicia la pc
 - bloquea la pc
 - abre terminal
+- cierra chrome
+- cierra spotify
+- cierra visual studio code
+- cierra la terminal
+- busca "algo" en google
+- busca algo en youtube
 
 Return:
 
@@ -187,6 +221,11 @@ Currently available actions:
 - shutdown_pc
 - restart_pc
 - lock_pc
+- close_chrome
+- close_vscode
+- close_spotify
+- close_terminal
+- search_google  (requires action_input = search query)
 
 Only use these unless explicitly expanded later.
 
@@ -211,6 +250,13 @@ Examples:
 "apaga la pc" -> shutdown_pc
 "reinicia la pc" -> restart_pc
 "bloquea la pc" -> lock_pc
+
+"cierra chrome" -> close_chrome
+"cierra el navegador" -> close_chrome
+"cierra visual studio code" -> close_vscode
+"cierra vscode" -> close_vscode
+"cierra spotify" -> close_spotify
+"cierra la terminal" -> close_terminal
 
 ==================================================
 FOLLOW-UP BEHAVIOR
