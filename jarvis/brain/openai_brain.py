@@ -17,7 +17,18 @@ class OpenAIBrain:
         self.client = OpenAI(api_key=api_key)
         self.model_name = model_name
         self.memory = MemoryManager()
-        self.history = []
+        self.history: list[dict] = []
+        self._base_prompt: str = self._load_system_prompt()
+
+    def _load_system_prompt(self) -> str:
+        """Carga el CerebroJarvis.md una sola vez al arrancar. Nunca se vuelve a leer del disco."""
+        prompt_path = Path("CerebroJarvis.md")
+        if prompt_path.exists():
+            prompt = prompt_path.read_text(encoding="utf-8")
+            print(f"Jarvis> [Cerebro cargado: {len(prompt)} caracteres]")
+            return prompt
+        print("Jarvis> [Advertencia: CerebroJarvis.md no encontrado. Usando prompt base.]")
+        return "Eres Jarvis, un asistente de escritorio. Clasifica la entrada y responde solo JSON valido."
 
     def analyze(self, text: str) -> dict[str, Any]:
         """
@@ -25,21 +36,7 @@ class OpenAIBrain:
         Retorna un dict con la intención, acción y respuesta según el CerebroJarvis.md
         """
         try:
-            prompt_path = Path("CerebroJarvis.md")
-            if prompt_path.exists():
-                base_prompt = prompt_path.read_text(encoding="utf-8")
-            else:
-                base_prompt = "Eres Jarvis, un asistente de escritorio. Clasifica la entrada y responde solo JSON valido."
-            
-            # Inyectar memoria a largo plazo
-            known_memory = self.memory.get_all()
-            if known_memory:
-                memory_str = json.dumps(known_memory, indent=2, ensure_ascii=False)
-                base_prompt += f"\n\n==================================================\nCURRENT LONG-TERM MEMORY:\n{memory_str}\n=================================================="
-
-            messages = [{"role": "system", "content": base_prompt}]
-            messages.extend(self.history)
-            messages.append({"role": "user", "content": text})
+            messages = self._build_messages(text)
 
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -71,19 +68,15 @@ class OpenAIBrain:
             return self._fallback_analysis(text)
 
     def _build_messages(self, text: str) -> list[dict]:
-        """Construye la lista de mensajes con el prompt base y la memoria."""
-        prompt_path = Path("CerebroJarvis.md")
-        if prompt_path.exists():
-            base_prompt = prompt_path.read_text(encoding="utf-8")
-        else:
-            base_prompt = "Eres Jarvis, un asistente de escritorio. Clasifica la entrada y responde solo JSON valido."
+        """Construye la lista de mensajes inyectando la memoria a largo plazo al prompt ya cacheado."""
+        prompt = self._base_prompt
 
         known_memory = self.memory.get_all()
         if known_memory:
             memory_str = json.dumps(known_memory, indent=2, ensure_ascii=False)
-            base_prompt += f"\n\n==================================================\nCURRENT LONG-TERM MEMORY:\n{memory_str}\n=================================================="
+            prompt += f"\n\n==================================================\nCURRENT LONG-TERM MEMORY:\n{memory_str}\n=================================================="
 
-        messages = [{"role": "system", "content": base_prompt}]
+        messages = [{"role": "system", "content": prompt}]
         messages.extend(self.history)
         messages.append({"role": "user", "content": text})
         return messages
