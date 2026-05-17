@@ -28,6 +28,7 @@ def instalar():
         return
 
     vbs_content = f'''Set WshShell = CreateObject("WScript.Shell")
+WshShell.CurrentDirectory = "{JARVIS_DIR}"
 WshShell.Run """{python_exe}"" ""{main_py}"" --auto", 0, False
 Set WshShell = Nothing
 '''
