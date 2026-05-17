@@ -228,15 +228,28 @@ Currently available actions:
 - open_vscode
 - open_spotify
 - open_terminal
-- shutdown_pc
-- restart_pc
-- lock_pc
 - close_chrome
 - close_vscode
 - close_spotify
 - close_terminal
-- search_google  (opens browser, requires action_input = query)
-- web_search     (searches internet and answers, requires action_input = query)
+- search_google      (opens browser, requires action_input = query)
+- web_search         (searches internet and answers, requires action_input = query)
+- get_time
+- shutdown_pc
+- restart_pc
+- lock_pc
+- cancel_shutdown
+- volume_up
+- volume_down
+- mute
+- unmute
+- get_volume
+- set_volume         (requires action_input = number 0-100)
+- get_battery
+- get_system_stats
+- brightness_up
+- brightness_down
+- set_brightness     (requires action_input = number 0-100)
 
 Only use these unless explicitly expanded later.
 
@@ -259,8 +272,10 @@ Examples:
 "abre terminal" -> open_terminal
 
 "apaga la pc" -> shutdown_pc
+"apaga el equipo" -> shutdown_pc
 "reinicia la pc" -> restart_pc
 "bloquea la pc" -> lock_pc
+"cancela el apagado" -> cancel_shutdown
 
 "cierra chrome" -> close_chrome
 "cierra el navegador" -> close_chrome
@@ -268,6 +283,24 @@ Examples:
 "cierra vscode" -> close_vscode
 "cierra spotify" -> close_spotify
 "cierra la terminal" -> close_terminal
+
+"sube el volumen" -> volume_up
+"baja el volumen" -> volume_down
+"pon el volumen al 80" -> set_volume (action_input: "80")
+"pon el volumen al máximo" -> set_volume (action_input: "100")
+"silencia" -> mute
+"silencia el sistema" -> mute
+"quita el silencio" -> unmute
+"cuánto volumen hay" -> get_volume
+
+"sube el brillo" -> brightness_up
+"baja el brillo" -> brightness_down
+"pon el brillo al 50" -> set_brightness (action_input: "50")
+
+"cómo está la batería" -> get_battery
+"cuánta batería queda" -> get_battery
+"estado del sistema" -> get_system_stats
+"cuánta RAM estoy usando" -> get_system_stats
 
 ==================================================
 FOLLOW-UP BEHAVIOR

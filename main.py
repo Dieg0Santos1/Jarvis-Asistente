@@ -193,8 +193,15 @@ class JarvisApp:
             self.ui.set_detail(f'Buscando: "{query}"')
             return self.search_actions.search_and_summarize(query)
 
-        if action_name == "get_time":
-            return self.system_actions.get_current_time()
+        # Todas las acciones de sistema van por el dispatcher central
+        system_actions = {
+            "get_time", "shutdown_pc", "restart_pc", "lock_pc", "cancel_shutdown",
+            "volume_up", "volume_down", "mute", "unmute", "get_volume", "set_volume",
+            "get_battery", "get_system_stats",
+            "brightness_up", "brightness_down", "set_brightness",
+        }
+        if action_name in system_actions:
+            return self.system_actions.execute(action_name, action_input)
 
         return "No reconozco esa accion todavia."
 
@@ -212,6 +219,22 @@ class JarvisApp:
             "close_spotify": "Cerrando Spotify",
             "close_terminal": "Cerrando la terminal",
             "web_search": "Buscando en internet...",
+            "get_time": "Consultando la hora",
+            "shutdown_pc": "Apagando el equipo",
+            "restart_pc": "Reiniciando el equipo",
+            "lock_pc": "Bloqueando el equipo",
+            "cancel_shutdown": "Cancelando el apagado",
+            "volume_up": "Subiendo el volumen",
+            "volume_down": "Bajando el volumen",
+            "mute": "Silenciando el sistema",
+            "unmute": "Restaurando el sonido",
+            "get_volume": "Consultando el volumen",
+            "set_volume": "Ajustando el volumen",
+            "get_battery": "Consultando la batería",
+            "get_system_stats": "Consultando el estado del sistema",
+            "brightness_up": "Subiendo el brillo",
+            "brightness_down": "Bajando el brillo",
+            "set_brightness": "Ajustando el brillo",
         }
         if action_name == "search_google" and action_input:
             return f'Buscando en Google: "{action_input}"'
