@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
-
 from openai import OpenAI
 
 
@@ -11,9 +9,10 @@ class SearchActions:
     los resultados usando OpenAI para dar una respuesta natural y hablada.
     """
 
-    def __init__(self, openai_api_key: str, openai_model: str = "gpt-4o-mini") -> None:
-        self.client = OpenAI(api_key=openai_api_key)
-        self.model = openai_model
+    def __init__(self, openai_api_key: str | None = None, openai_model: str | None = None) -> None:
+        from config import settings
+        self.client = OpenAI(api_key=openai_api_key or settings.openai_api_key)
+        self.model = openai_model or settings.openai_model
 
     def search_and_summarize(self, query: str) -> str:
         """
@@ -36,7 +35,7 @@ class SearchActions:
             prompt = (
                 "Eres Jarvis, un asistente de escritorio. "
                 "Tu usuario te preguntó algo y buscaste en internet. "
-                "Resumí los siguientes resultados en 1-3 oraciones cortas, naturales y directas. "
+                "Resume los siguientes resultados en 1-2 oraciones muy cortas, naturales y directas. "
                 "Habla en primera persona como si tú supieras la información. "
                 "No menciones que buscaste en internet ni que hay fuentes. Solo da la respuesta.\n\n"
                 f"Pregunta original: {query}\n\n"
@@ -46,7 +45,7 @@ class SearchActions:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=200,
+                max_tokens=120,
             )
             return response.choices[0].message.content.strip()
 

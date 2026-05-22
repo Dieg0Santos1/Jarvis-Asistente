@@ -16,20 +16,24 @@ import win32com.client
 class TextToSpeechService:
     def __init__(
         self,
-        language: str = "es",
-        rate: int = 175,
-        voice_hint: str = "",
-        elevenlabs_api_key: str = "",
-        elevenlabs_voice_id: str = "",
+        language: str | None = None,
+        rate: int | None = None,
+        voice_hint: str | None = None,
+        elevenlabs_enabled: bool | None = None,
+        elevenlabs_api_key: str | None = None,
+        elevenlabs_voice_id: str | None = None,
     ) -> None:
-        self.language = language.lower()
-        self.rate = rate
-        self.voice_hint = voice_hint.lower().strip()
-        self.elevenlabs_api_key = elevenlabs_api_key
-        self.elevenlabs_voice_id = elevenlabs_voice_id
+        from config import settings
+        self.language = (language or settings.language).lower()
+        self.rate = settings.tts_rate if rate is None else rate
+        self.voice_hint = (voice_hint or settings.tts_voice_hint or "").lower().strip()
+        self.elevenlabs_enabled = settings.elevenlabs_enabled if elevenlabs_enabled is None else elevenlabs_enabled
+        self.elevenlabs_api_key = settings.elevenlabs_api_key if elevenlabs_api_key is None else elevenlabs_api_key
+        self.elevenlabs_voice_id = settings.elevenlabs_voice_id if elevenlabs_voice_id is None else elevenlabs_voice_id
 
         self.elevenlabs_client = None
-        if self.elevenlabs_api_key and ElevenLabs is not None:
+        self._elevenlabs_disabled_reason = ""
+        if self.elevenlabs_enabled and self.elevenlabs_api_key and ElevenLabs is not None:
             self.elevenlabs_client = ElevenLabs(api_key=self.elevenlabs_api_key)
 
         self._is_windows = sys.platform.startswith("win")
@@ -63,7 +67,7 @@ class TextToSpeechService:
                 sd.wait()
                 return
             except Exception as exc:
-                print(f"Jarvis> Error en ElevenLabs: {exc}. Usando voz local de respaldo.")
+                self._handle_elevenlabs_error(exc)
 
         try:
             if self._is_windows:
@@ -93,6 +97,10 @@ class TextToSpeechService:
             for sentence in sentences:
                 if not sentence.strip():
                     continue
+                if self.elevenlabs_client is None:
+                    audio_queue.put(("sapi", sentence))
+                    continue
+
                 try:
                     audio_gen = self.elevenlabs_client.text_to_speech.convert(
                         text=sentence,
@@ -103,7 +111,7 @@ class TextToSpeechService:
                     audio_bytes = b"".join(audio_gen)
                     audio_queue.put(audio_bytes)
                 except Exception as exc:
-                    print(f"Jarvis> [TTS error]: {exc}")
+                    self._handle_elevenlabs_error(exc)
                     # Fallback: sintetizar con SAPI local
                     audio_queue.put(("sapi", sentence))
             audio_queue.put(DONE)
@@ -145,6 +153,15 @@ class TextToSpeechService:
                 print(f"Jarvis> {sentence}")
                 self.speak(sentence)
 
+    def _handle_elevenlabs_error(self, exc: Exception) -> None:
+        message = str(exc)
+        if "quota_exceeded" in message or "exceeds your quota" in message:
+            self.elevenlabs_client = None
+            self._elevenlabs_disabled_reason = "quota_exceeded"
+            print("Jarvis> ElevenLabs sin creditos suficientes. Usando voz local durante esta sesion.")
+            return
+
+        print(f"Jarvis> ElevenLabs no pudo sintetizar audio ({exc.__class__.__name__}). Usando voz local.")
 
     def _configure_voice(self) -> None:
         self.engine.setProperty("rate", self.rate)

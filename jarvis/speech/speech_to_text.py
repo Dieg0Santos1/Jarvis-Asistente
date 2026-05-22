@@ -10,10 +10,11 @@ from scipy.io.wavfile import write
 
 
 class SpeechToTextService:
-    def __init__(self, model_name: str, language: str, prompt: str = "") -> None:
-        self.model_name = model_name
-        self.language = language
-        self.prompt = prompt.strip()
+    def __init__(self, model_name: str | None = None, language: str | None = None, prompt: str | None = None) -> None:
+        from config import settings
+        self.model_name = model_name or settings.whisper_model
+        self.language = language or settings.language
+        self.prompt = (prompt or settings.whisper_prompt).strip()
         self._model = None
 
     def record_to_file(self, output_path: str, duration_seconds: int = 5, sample_rate: int = 16_000) -> str:
@@ -109,6 +110,9 @@ class SpeechToTextService:
 
     def _normalize_transcript(self, text: str) -> str:
         cleaned = " ".join(text.split())
+        if self._looks_like_silence_hallucination(cleaned):
+            return ""
+
         replacements = {
             "visual estudio code": "visual studio code",
             "visual estudio": "visual studio",
@@ -127,3 +131,16 @@ class SpeechToTextService:
         for source, target in replacements.items():
             lowered = lowered.replace(source, target)
         return lowered
+
+    def _looks_like_silence_hallucination(self, text: str) -> bool:
+        lowered = text.lower().strip(" .,!¡¿?")
+        hallucinations = {
+            "suscribete",
+            "suscríbete",
+            "subtitulos realizados por la comunidad de amara.org",
+            "gracias por ver el video",
+            "gracias por ver",
+            "thank you for watching",
+            "subscribe",
+        }
+        return lowered in hallucinations or (lowered.startswith("suscr") and len(lowered) <= 24)
